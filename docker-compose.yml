@@ -1,0 +1,30 @@
+version: '3.7'
+
+services:
+  playwright:
+    image: pixelfactory/playwright:v1.2.2
+
+  synthetic-exporter:
+    image: synthetic-exporter
+    build:
+      dockerfile: Dockerfile
+      context: .
+    environment:
+      - 'WS_ENDPOINT=ws://playwright:3000'
+    ports:
+      - '8090:8090'
+    depends_on:
+      - playwright
+
+  dev-container:
+    image: node:lts
+    volumes:
+      - $PWD:/code
+    working_dir: /code
+    ports:
+      - '8090:8090'
+    environment:
+      - 'WS_ENDPOINT=ws://playwright:3000'
+    depends_on:
+      - playwright
+    command: yarn dev
