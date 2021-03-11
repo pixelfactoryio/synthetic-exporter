@@ -3,6 +3,8 @@ version: '3.7'
 services:
   playwright:
     image: pixelfactory/playwright:v1.2.2
+    ports:
+      - '3000:3000'
 
   synthetic-exporter:
     image: synthetic-exporter
