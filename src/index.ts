@@ -15,7 +15,7 @@ const logger = createLogger({
 });
 
 const wsEndpoint = process.env.WS_ENDPOINT || 'ws://localhost:3000';
-const browserMaxConnRetry = process.env.BROWSER_MAX_CONNECTION_RETRY;
+const browserMaxConnRetry = process.env.BROWSER_MAX_CONNECTION_RETRY || '20';
 
 (async (): Promise<void> => {
   const app = new App({

@@ -1,8 +1,9 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { Registry, Gauge } from 'prom-client';
 import { Logger } from 'winston';
 
 import ValidateDto from '../middlewares/ValidateDto';
+import HttpException from '../exceptions/HttpException';
 import { Controller, SyntheticMetric } from '../types';
 import { ProbeQuery, ProbeQuerySchema } from '../dto/probe';
 import { PerformanceMetric } from '../metrics/PerformanceMetric';
@@ -88,17 +89,16 @@ class Probe implements Controller {
     ];
   }
 
-  private index = async (req: Request, res: Response): Promise<void> => {
+  private index = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const { target } = req.query as ProbeQuery;
 
-    res.set('Content-Type', this.registry.contentType);
-
     if (!this.browserHandler.isConnected) {
-      this.probeSuccessMetric.set({ target: target }, 0);
-      res.send(await this.registry.metrics());
       this.registry.resetMetrics();
+      next(new HttpException(500, 'playwright browser is disconnected'));
       return;
     }
+
+    res.set('Content-Type', this.registry.contentType);
 
     try {
       const context = await this.browserHandler.browser.newContext();
