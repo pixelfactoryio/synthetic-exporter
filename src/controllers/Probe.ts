@@ -92,7 +92,7 @@ class Probe implements Controller {
   private index = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const { target } = req.query as ProbeQuery;
 
-    if (!this.browserHandler.isConnected) {
+    if (!this.browserHandler.isConnected()) {
       this.registry.resetMetrics();
       next(new HttpException(500, 'playwright browser is disconnected'));
       return;
