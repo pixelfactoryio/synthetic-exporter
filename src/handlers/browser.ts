@@ -6,7 +6,6 @@ type BrowserOption = (b: BrowserHandler) => void;
 
 export default class BrowserHandler {
   public browser!: Browser;
-  public isConnected: boolean;
   private wsEndpoint!: string;
   private logger!: Logger;
   private maxConnectionRetry!: number;
@@ -16,8 +15,11 @@ export default class BrowserHandler {
       option(this);
     }
 
-    this.isConnected = false;
     this.initBrowser();
+  }
+
+  public isConnected(): boolean {
+    return this.browser.isConnected();
   }
 
   public initBrowser = async (): Promise<void> => {
@@ -34,12 +36,10 @@ export default class BrowserHandler {
       });
 
       browser.on('disconnected', async () => {
-        this.isConnected = false;
         this.initBrowser();
       });
 
       this.logger.info(`browser connected to socket ${this.wsEndpoint}`);
-      this.isConnected = true;
       this.browser = browser;
     } catch (e) {
       this.logger.error(`unable to connect browser to socket ${this.wsEndpoint}`, { err: e });
