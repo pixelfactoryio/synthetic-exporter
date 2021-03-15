@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/pixelfactoryio/synthetic-exporter/compare/v1.0.0...v1.0.1) (2021-03-15)
+
+
+### Bug Fixes
+
+* use built in isConnected method ([#4](https://github.com/pixelfactoryio/synthetic-exporter/issues/4)) ([d12366c](https://github.com/pixelfactoryio/synthetic-exporter/commit/d12366c55c3e2ed7c7476096e91a2a999d7674c7))
+
 # 1.0.0 (2021-03-11)
 
 
