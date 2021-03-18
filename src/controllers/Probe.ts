@@ -104,16 +104,16 @@ class Probe implements Controller {
       const context = await this.browserHandler.browser.newContext();
       const page = await context.newPage();
       await page.goto(target);
-      const navigationPerformance = JSON.parse(
-        await page.evaluate(() => JSON.stringify(performance.getEntriesByType('navigation'))),
-      )[0];
+
+      const perfmap = await page.evaluate<string>(`JSON.stringify(performance.getEntriesByType('navigation'))`);
+      const navigationPerformance = JSON.parse(perfmap)[0];
       this.logger.debug(`${target} performance`, { navigationPerformance });
 
       for (const metric of this.performanceMetrics) {
         metric.set({ target: target }, navigationPerformance[metric.performancePropertyName]);
       }
-
       this.probeSuccessMetric.set({ target: target }, 1);
+
       await page.close();
       await context.close();
     } catch (e) {
