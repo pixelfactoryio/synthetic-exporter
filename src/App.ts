@@ -1,5 +1,5 @@
 import express, { Application, RequestHandler, ErrorRequestHandler } from 'express';
-import { Logger } from 'winston';
+import { Logger, createLogger } from 'winston';
 import { Controller } from './types';
 
 class App {
@@ -8,18 +8,18 @@ class App {
   public logger: Logger;
 
   constructor(config: {
-    port: number;
-    logger: Logger;
-    middlewares: RequestHandler[];
-    errorMiddlewares: ErrorRequestHandler[];
-    controllers: Controller[];
+    port?: number;
+    logger?: Logger;
+    middlewares?: RequestHandler[];
+    errorMiddlewares?: ErrorRequestHandler[];
+    controllers?: Controller[];
   }) {
     this.app = express();
-    this.PORT = config.port;
-    this.logger = config.logger;
-    this.middlewares(config.middlewares);
-    this.controllers(config.controllers);
-    this.errorMiddlewares(config.errorMiddlewares);
+    this.PORT = config.port || 8090;
+    this.logger = config.logger || createLogger();
+    this.middlewares(config.middlewares || []);
+    this.controllers(config.controllers || []);
+    this.errorMiddlewares(config.errorMiddlewares || []);
   }
 
   public listen(): void {
@@ -28,7 +28,7 @@ class App {
     });
   }
 
-  public getServer(): express.Application {
+  public getServer(): Application {
     return this.app;
   }
 
