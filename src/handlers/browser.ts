@@ -1,57 +1,61 @@
-import { Browser, chromium } from 'playwright-core';
+import { Browser, chromium } from 'playwright';
 import { backOff } from 'exponential-backoff';
-import { Logger } from 'winston';
+import EventEmitter from 'events';
 
 type BrowserOption = (b: BrowserHandler) => void;
 
-export default class BrowserHandler {
+export default class BrowserHandler extends EventEmitter {
   public browser!: Browser;
   private wsEndpoint!: string;
-  private logger!: Logger;
-  private maxConnectionRetry!: number;
+  public maxConnectionRetry!: number;
+  public attemptNumber!: number;
+  private isClosing: boolean;
 
   constructor(...options: BrowserOption[]) {
+    super();
     for (const option of options) {
       option(this);
     }
-
-    this.initBrowser();
+    this.attemptNumber = 0;
+    this.isClosing = false;
   }
 
-  public isConnected(): boolean {
+  public static async Build(...options: BrowserOption[]): Promise<BrowserHandler> {
+    const bh = new BrowserHandler(...options);
+    await bh.initBrowser();
+    return bh;
+  }
+
+  public isConnected = (): boolean => {
     return this.browser.isConnected();
-  }
+  };
+
+  public close = async (): Promise<void> => {
+    this.isClosing = true;
+    this.removeAllListeners();
+    return this.browser.close();
+  };
 
   public initBrowser = async (): Promise<void> => {
     try {
-      const browser = await backOff(() => chromium.connect({ wsEndpoint: this.wsEndpoint }), {
+      this.browser = await backOff(() => chromium.connect({ wsEndpoint: this.wsEndpoint }), {
         numOfAttempts: this.maxConnectionRetry,
         retry: (e: any, attemptNumber: number): boolean => {
-          this.logger.warn(`Error: ${e.message}`, {
-            attemptNumber: attemptNumber,
-            maxRetry: this.maxConnectionRetry,
-          });
-          return attemptNumber < this.maxConnectionRetry;
+          this.emit('connection_retry', e, attemptNumber);
+          this.attemptNumber++;
+          return this.attemptNumber < this.maxConnectionRetry;
         },
       });
 
-      browser.on('disconnected', async () => {
-        this.initBrowser();
+      this.browser.on('disconnected', async () => {
+        if (!this.isClosing) {
+          await this.initBrowser();
+        }
       });
-
-      this.logger.info(`browser connected to socket ${this.wsEndpoint}`);
-      this.browser = browser;
     } catch (e) {
-      this.logger.error(`unable to connect browser to socket ${this.wsEndpoint}`, { err: e });
-      process.exit(1);
+      this.emit('error', e);
     }
   };
-
-  public static WithLogger(logger: Logger): BrowserOption {
-    return (b: BrowserHandler): void => {
-      b.logger = logger;
-    };
-  }
 
   public static WithWsEndpoint(wsEndpoint: string): BrowserOption {
     return (b: BrowserHandler): void => {
