@@ -2,7 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [master, next]
+    branches: 
+      - master
+      - next
 
 jobs:
   build:
@@ -33,3 +35,6 @@ jobs:
         uses: codecov/codecov-action@v1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Release
+        run: yarn semantic-release
