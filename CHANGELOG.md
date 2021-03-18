@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/pixelfactoryio/synthetic-exporter/compare/v1.0.1...v1.0.2) (2021-03-18)
+
+
+### Bug Fixes
+
+* merge Ci and Release pipeline ([f3cd53f](https://github.com/pixelfactoryio/synthetic-exporter/commit/f3cd53f3fcce5bea152e16b8a5aaa6886b62ad34))
+
 ## [1.0.1](https://github.com/pixelfactoryio/synthetic-exporter/compare/v1.0.0...v1.0.1) (2021-03-15)
 
 
