@@ -1,11 +1,19 @@
-import { chromium } from 'playwright';
+import { chromium, BrowserServer } from 'playwright';
 import BrowserHandler from './browser';
+
+let bs: BrowserServer;
+let wsEndpoint: string;
+beforeAll(async () => {
+  bs = await chromium.launchServer();
+  wsEndpoint = bs.wsEndpoint();
+});
+
+afterAll(async () => {
+  await bs.close();
+});
 
 describe('BrowserHandler', () => {
   it('Should connect', async () => {
-    const bs = await chromium.launchServer();
-    const wsEndpoint = bs.wsEndpoint();
-
     const bh = await BrowserHandler.Build(
       BrowserHandler.WithWsEndpoint(wsEndpoint),
       BrowserHandler.WithMaxConnectionRetry(Number(2)),
@@ -16,7 +24,6 @@ describe('BrowserHandler', () => {
     expect(bh.maxConnectionRetry).toBe(2);
 
     await bh.close();
-    await bs.kill();
   });
 
   it('Should not connect and throw an error', async () => {
@@ -29,21 +36,18 @@ describe('BrowserHandler', () => {
   });
 
   it('Should retry to connect and emit an error', async (done) => {
-    const bs = await chromium.launchServer();
-    const wsEndpoint = bs.wsEndpoint();
-
     const bh = await BrowserHandler.Build(
       BrowserHandler.WithWsEndpoint(wsEndpoint),
-      BrowserHandler.WithMaxConnectionRetry(Number(3)),
+      BrowserHandler.WithMaxConnectionRetry(Number(2)),
     );
 
     bh.on('error', async () => {
       expect(bh.isConnected()).toBe(false);
-      expect(bh.attemptNumber).toBe(3);
+      expect(bh.attemptNumber).toBe(2);
       await bh.close();
       done();
     });
 
-    await bs.kill();
+    await bs.close();
   });
 });

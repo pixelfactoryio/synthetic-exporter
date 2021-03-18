@@ -1,4 +1,4 @@
-import { Browser, chromium } from 'playwright';
+import { Browser, chromium } from 'playwright-core';
 import { backOff } from 'exponential-backoff';
 import EventEmitter from 'events';
 
