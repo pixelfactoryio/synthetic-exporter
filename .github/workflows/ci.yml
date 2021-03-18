@@ -1,10 +1,13 @@
 name: CI
 
 on:
+  push:
+    branches:
+      - 'master'
+      - 'next'
+    tags:
+      - 'v*'
   pull_request:
-    branches: 
-      - master
-      - next
 
 jobs:
   build:
@@ -37,4 +40,5 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Release
+        if: github.ref == 'refs/heads/master'
         run: yarn semantic-release
