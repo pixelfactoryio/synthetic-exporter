@@ -6,11 +6,18 @@ export interface Controller {
   router: Router;
 }
 
-export type PerformanceProperty = keyof PerformanceTiming | keyof PerformanceEntry;
-
 export interface SyntheticMetric<T> {
-  performancePropertyName: PerformanceProperty;
   metric: Metric<string>;
+  performanceEntryType: string;
+  performanceEntryName: string;
   set(ops: T, value: number): void;
   reset(): void;
+}
+
+declare global {
+  interface Window {
+    largestContentfulPaint: any; 
+    firstContentfulPaint: any;
+    timeToInteractive: any;
+  }
 }

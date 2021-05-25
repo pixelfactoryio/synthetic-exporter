@@ -6,10 +6,48 @@ import ValidateDto from '../middlewares/ValidateDto';
 import HttpException from '../exceptions/HttpException';
 import { Controller, SyntheticMetric } from '../types';
 import { ProbeQuery, ProbeQuerySchema } from '../dto/probe';
-import { PerformanceMetric } from '../metrics/PerformanceMetric';
+import { Metric } from '../metrics/PerformanceMetric';
 import BrowserHandler from '../handlers/browser';
 
 type ProbeOption = (p: Probe) => void;
+
+function observeMetrics() {
+  window.firstContentfulPaint = 0;
+  window.largestContentfulPaint = 0;
+  window.timeToInteractive = 0;
+
+  const LCPObserver = new PerformanceObserver((entryList) => {
+      const entries = entryList.getEntries();
+      const lastEntry = entries[entries.length - 1];
+      window.largestContentfulPaint = lastEntry;
+  });
+  LCPObserver.observe({ type: 'largest-contentful-paint', buffered: true });
+
+  const FCPObserver = new PerformanceObserver((entryList) => {
+      const entries = entryList.getEntriesByName('first-contentful-paint');
+      const lastEntry = entries[entries.length - 1];
+      window.firstContentfulPaint = lastEntry;
+  });
+  FCPObserver.observe({ type: 'paint', buffered: true });
+
+  const TTIObserver = new PerformanceObserver((entryList) => {
+      const entries = entryList.getEntries();
+      const lastEntry = entries[entries.length - 1];
+      window.timeToInteractive = lastEntry; 
+  });
+  TTIObserver.observe({ type: 'navigation', buffered: true });
+
+  document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+          LCPObserver.takeRecords();
+          LCPObserver.disconnect();
+          FCPObserver.takeRecords();
+          FCPObserver.disconnect();
+          TTIObserver.takeRecords();
+          TTIObserver.disconnect();
+      }
+  });
+}
 
 class Probe implements Controller {
   public path = '/probe';
@@ -24,7 +62,7 @@ class Probe implements Controller {
     help: 'Displays whether or not the probe was a success',
     labelNames: ['target'],
   });
-  private performanceMetrics!: SyntheticMetric<{ target: string }>[];
+  private Metrics!: SyntheticMetric<{ target: string }>[];
 
   constructor(...options: ProbeOption[]) {
     for (const option of options) {
@@ -42,8 +80,8 @@ class Probe implements Controller {
   private initPrometheus(): void {
     this.registry.registerMetric(this.probeSuccessMetric);
 
-    this.performanceMetrics = this.setupPerformaceMetrics();
-    for (const m of this.performanceMetrics) {
+    this.Metrics = this.setupMetrics();
+    for (const m of this.Metrics) {
       this.registry.registerMetric(m.metric);
     }
   }
@@ -60,30 +98,33 @@ class Probe implements Controller {
     };
   }
 
-  private setupPerformaceMetrics(): SyntheticMetric<{ target: string }>[] {
+  private setupMetrics(): SyntheticMetric<{ target: string }>[] {
     return [
-      new PerformanceMetric(
+      new Metric(
         new Gauge({
           name: 'synthetic_probe_duration_seconds',
           help: 'Represents how long, in seconds, it took for the probe complete.',
           labelNames: ['target'],
         }),
+        'navigation',
         'duration',
       ),
-      new PerformanceMetric(
+      new Metric(
         new Gauge({
           name: 'synthetic_probe_dom_complete_duration_seconds',
           help: "Represents how long, in seconds, it took for the DOM to changes to 'complete' state.",
           labelNames: ['target'],
         }),
+        'navigation',
         'domComplete',
       ),
-      new PerformanceMetric(
+      new Metric(
         new Gauge({
           name: 'synthetic_probe_dom_interactive_duration_seconds',
           help: "Represents how long, in seconds, it took for the DOM to changes to 'interactive' state.",
           labelNames: ['target'],
         }),
+        'navigation',
         'domInteractive',
       ),
     ];
@@ -103,15 +144,40 @@ class Probe implements Controller {
     try {
       const context = await this.browserHandler.browser.newContext();
       const page = await context.newPage();
+      const navigationPromise = page.waitForNavigation();
+      
+      await page.addInitScript(observeMetrics);
       await page.goto(target);
+      await navigationPromise;
 
-      const perfmap = await page.evaluate<string>(`JSON.stringify(performance.getEntriesByType('navigation'))`);
-      const navigationPerformance = JSON.parse(perfmap)[0];
-      this.logger.debug(`${target} performance`, { navigationPerformance });
+      const perfmap: Array<any> = JSON.parse(
+        await page.evaluate<string>(`
+          JSON.stringify(
+            { 
+              firstContentfulPaint: window.firstContentfulPaint,
+              largestContentfulPaint: window.largestContentfulPaint,
+              timeToInteractive: window.timeToInteractive
+            }
+          )
+        `)
+      );
 
-      for (const metric of this.performanceMetrics) {
-        metric.set({ target: target }, navigationPerformance[metric.performancePropertyName]);
-      }
+      this.logger.debug(`${target} performance`, { perfmap });
+      console.log(perfmap)
+
+      // const navigationPerfMap = perfmap.filter(m => m.entryType === 'navigation')
+      // console.log("------------------")
+      // console.log(navigationPerfMap)
+      // console.log("------------------")
+      // for (const metric of this.Metrics) {
+      //   metric.set({ target: target }, );
+      // }
+
+      // const paintPerfMap = perfmap.filter(m => m.entryType === 'paint')
+      // console.log("------------------")
+      // console.log(paintPerfMap)
+      // console.log("------------------")
+
       this.probeSuccessMetric.set({ target: target }, 1);
 
       await page.close();

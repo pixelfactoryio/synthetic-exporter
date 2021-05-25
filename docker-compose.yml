@@ -2,7 +2,9 @@ version: '3.7'
 
 services:
   playwright:
-    image: pixelfactory/playwright:v1.2.2
+    image: pixelfactory/playwright:latest
+    environment:
+      - 'LOG_LEVEL=debug'
     ports:
       - '3000:3000'
 
@@ -29,4 +31,4 @@ services:
       - 'WS_ENDPOINT=ws://playwright:3000'
     depends_on:
       - playwright
-    command: yarn dev
+    command: yarn test
